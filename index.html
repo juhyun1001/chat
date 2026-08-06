@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>숫자 야구 게임</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+        }
+
+        body {
+            background-color: #f4f6f8;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .game-card {
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        h1 {
+            color: #1e293b;
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+
+        .description {
+            color: #64748b;
+            font-size: 14px;
+            margin-bottom: 24px;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        input {
+            flex: 1;
+            padding: 12px;
+            font-size: 18px;
+            text-align: center;
+            letter-spacing: 4px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input:focus {
+            border-color: #3b82f6;
+        }
+
+        button {
+            padding: 12px 20px;
+            font-size: 15px;
+            font-weight: 600;
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #2563eb;
+        }
+
+        button:disabled {
+            background-color: #cbd5e1;
+            cursor: not-allowed;
+        }
+
+        .reset-btn {
+            width: 100%;
+            background-color: #64748b;
+            margin-top: 12px;
+        }
+
+        .reset-btn:hover {
+            background-color: #475569;
+        }
+
+        .message {
+            min-height: 24px;
+            margin-bottom: 16px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .message.error { color: #ef4444; }
+        .message.success { color: #10b981; }
+
+        .history-container {
+            margin-top: 20px;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 16px;
+            max-height: 220px;
+            overflow-y: auto;
+        }
+
+        .history-title {
+            font-size: 14px;
+            color: #64748b;
+            margin-bottom: 12px;
+            text-align: left;
+        }
+
+        .history-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 14px;
+            background-color: #f8fafc;
+            border-radius: 6px;
+            font-size: 15px;
+        }
+
+        .history-item .number {
+            font-weight: bold;
+            color: #334155;
+            letter-spacing: 2px;
+        }
+
+        .result-badge {
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .badge-s { color: #ef4444; margin-right: 4px; }
+        .badge-b { color: #3b82f6; margin-right: 4px; }
+        .badge-out { color: #94a3b8; }
+    </style>
+</head>
+<body>
+
+<div class="game-card">
+    <h1>⚾ 숫자 야구 게임</h1>
+    <p class="description">1~9까지의 중복 없는 숫자 3개를 맞혀보세요!</p>
+
+    <div class="input-group">
+        <input type="text" id="guessInput" maxlength="3" placeholder="예: 123" autocomplete="off">
+        <button id="submitBtn">도전</button>
+    </div>
+
+    <div id="message" class="message"></div>
+
+    <button id="resetBtn" class="reset-btn">새 게임 시작</button>
+
+    <div class="history-container">
+        <div class="history-title">시도 기록 (<span id="attemptCount">0</span>/10)</div>
+        <ul id="historyList" class="history-list"></ul>
+    </div>
+</div>
+
+<script>
+    let secret = [];
+    let attempts = 0;
+    const maxAttempts = 10;
+    let isGameOver = false;
+
+    const guessInput = document.getElementById('guessInput');
+    const submitBtn = document.getElementById('submitBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const message = document.getElementById('message');
+    const historyList = document.getElementById('historyList');
+    const attemptCount = document.getElementById('attemptCount');
+
+    // 게임 초기화 및 난수 생성
+    function initGame() {
+        secret = [];
+        const digits = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+        for (let i = 0; i < 3; i++) {
+            const randomIndex = Math.floor(Math.random() * digits.length);
+            secret.push(digits.splice(randomIndex, 1)[0]);
+        }
+        attempts = 0;
+        isGameOver = false;
+        guessInput.value = '';
+        guessInput.disabled = false;
+        submitBtn.disabled = false;
+        message.textContent = '';
+        message.className = 'message';
+        historyList.innerHTML = '';
+        attemptCount.textContent = '0';
+        guessInput.focus();
+    }
+
+    // 판정 로직
+    function handleGuess() {
+        if (isGameOver) return;
+
+        const val = guessInput.value.trim();
+
+        // 유효성 검사
+        if (val.length !== 3 || isNaN(val)) {
+            showMessage('3자리 숫자를 입력하세요.', 'error');
+            return;
+        }
+
+        const digits = val.split('').map(Number);
+        
+        if (digits.includes(0)) {
+            showMessage('1부터 9까지의 숫자만 사용 가능합니다.', 'error');
+            return;
+        }
+
+        if (new Set(digits).size !== 3) {
+            showMessage('중복되지 않는 숫자를 입력하세요.', 'error');
+            return;
+        }
+
+        // S/B 계산
+        let strike = 0;
+        let ball = 0;
+
+        digits.forEach((num, idx) => {
+            if (num === secret[idx]) {
+                strike++;
+            } else if (secret.includes(num)) {
+                ball++;
+            }
+        });
+
+        attempts++;
+        attemptCount.textContent = attempts;
+        showMessage('', '');
+
+        // 결과 추가
+        addHistory(val, strike, ball);
+
+        // 승패 조건 확인
+        if (strike === 3) {
+            showMessage(`🎉 정답입니다! (${attempts}회 만에 성공)`, 'success');
+            endGame();
+        } else if (attempts >= maxAttempts) {
+            showMessage(`❌ 게임 오버! 정답은 [${secret.join('')}] 입니다.`, 'error');
+            endGame();
+        }
+
+        guessInput.value = '';
+        guessInput.focus();
+    }
+
+    function addHistory(guessStr, strike, ball) {
+        const li = document.createElement('li');
+        li.className = 'history-item';
+
+        let resultHTML = '';
+        if (strike === 0 && ball === 0) {
+            resultHTML = '<span class="badge-out">OUT</span>';
+        } else {
+            if (strike > 0) resultHTML += `<span class="badge-s">${strike}S</span> `;
+            if (ball > 0) resultHTML += `<span class="badge-b">${ball}B</span>`;
+        }
+
+        li.innerHTML = `
+            <span class="number">${guessStr}</span>
+            <div class="result-badge">${resultHTML}</div>
+        `;
+        historyList.prepend(li);
+    }
+
+    function showMessage(msg, type) {
+        message.textContent = msg;
+        message.className = `message ${type}`;
+    }
+
+    function endGame() {
+        isGameOver = true;
+        guessInput.disabled = true;
+        submitBtn.disabled = true;
+    }
+
+    // 이벤트 바인딩
+    submitBtn.addEventListener('click', handleGuess);
+    guessInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') handleGuess();
+    });
+    resetBtn.addEventListener('click', initGame);
+
+    // 실행 시작
+    initGame();
+</script>
+
+</body>
+</html>
